@@ -1,4 +1,4 @@
-module github.com/fiatjaf/schnorr
+module github.com/fiatjaf/bip340
 
 go 1.15
 

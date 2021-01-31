@@ -1,4 +1,4 @@
-package schnorr
+package bip340
 
 import (
 	"math/big"

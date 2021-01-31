@@ -1,120 +1,50 @@
-package schnorr
+package bip340
 
 import (
-	"io"
-	"math/big"
-	"net/http"
-	"strings"
-	"testing"
-
-	"encoding/csv"
 	"encoding/hex"
+	"fmt"
+	"math/big"
+
+	"github.com/fiatjaf/schnorr"
 )
 
-const TEST_CASES_CSV = "https://raw.githubusercontent.com/bitcoin/bips/master/bip-0340/test-vectors.csv"
+func ExampleSign() {
+	var message [32]byte
 
-func TestSign(t *testing.T) {
-	resp, err := http.Get(TEST_CASES_CSV)
+	privateKey, _ := new(big.Int).SetString("B7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF", 16)
+	msg, _ := hex.DecodeString("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
+	copy(message[:], msg)
+
+	signature, err := schnorr.Sign(privateKey, message, nil)
 	if err != nil {
-		t.Fatalf("Failed to get test cases from %s", TEST_CASES_CSV)
+		fmt.Printf("The signing is failed: %v\n", err)
 	}
+	fmt.Printf("The signature is: %x\n", signature)
 
-	defer resp.Body.Close()
-	r := csv.NewReader(resp.Body)
-
-	for {
-		testCase, err := r.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			t.Fatalf("Unexpected error reading CSV file: %s", err.Error())
-		}
-		if testCase[0] == "index" {
-			// head
-			continue
-		}
-
-		index := testCase[0]
-		privateKey := testCase[1]
-		publicKey := testCase[2]
-		aux := testCase[3]
-		message := testCase[4]
-		sig := testCase[5]
-		shouldVerify := testCase[6] == "TRUE"
-		errComment := testCase[7]
-
-		m := decodeMessage(message, t)
-
-		if privateKey != "" {
-			// use private key and aux to sign
-			d := decodePrivateKey(privateKey, t)
-			a := decodeMessage(aux, t)
-
-			signature, err := Sign(d, m, a[:])
-			if err != nil {
-				t.Fatalf("[%s] Unexpected error from Sign(%s, %s): %v",
-					index, privateKey, message, err)
-			}
-
-			observed := hex.EncodeToString(signature[:])
-			expected := strings.ToLower(sig)
-
-			// check if signature matches
-			if observed != expected {
-				t.Fatalf("[%s]: Sign(%s, %s, %s) = %s, want %s",
-					index, privateKey, message, aux, observed, expected)
-			}
-		}
-
-		// check public key
-		pk := decodePublicKey(publicKey, t)
-
-		// test if signature verification works
-		signature32 := decodeSignature(sig, t)
-		isValid, err := Verify(pk, m, signature32)
-		if isValid && shouldVerify {
-			// verifies as expected
-		} else if !isValid && !shouldVerify {
-			// fails to verify as expected
-		} else {
-			t.Fatalf("[%s] Verify test failed (verified? %v (%s); expected: %v): %s",
-				index, isValid, err.Error(), shouldVerify, errComment)
-		}
-	}
+	// Output:
+	// The signature is: 2a298dacae57395a15d0795ddbfd1dcb564da82b0f269bc70a74f8220429ba1d96ef2be1af1cae22bf6736fa9650de69e7da1d37f92c4a92fbc93cc28fdbdb84
 }
 
-func decodeSignature(s string, t *testing.T) (sig [64]byte) {
-	signature, err := hex.DecodeString(s)
-	if err != nil && t != nil {
-		t.Fatalf("Unexpected error from hex.DecodeString(%s): %v", s, err)
-	}
-	copy(sig[:], signature)
-	return
-}
+func ExampleVerify() {
+	var (
+		publicKey [32]byte
+		message   [32]byte
+		signature [64]byte
+	)
 
-func decodeMessage(m string, t *testing.T) (msg [32]byte) {
-	message, err := hex.DecodeString(m)
-	if err != nil && t != nil {
-		t.Fatalf("Unexpected error from hex.DecodeString(%s): %v", m, err)
-	}
-	copy(msg[:], message)
-	return
-}
+	pk, _ := hex.DecodeString("dff1d77f2a671c5f36183726db2341be58feae1da2deced843240f7b502ba659")
+	copy(publicKey[:], pk)
+	msg, _ := hex.DecodeString("243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89")
+	copy(message[:], msg)
+	sig, _ := hex.DecodeString("2a298dacae57395a15d0795ddbfd1dcb564da82b0f269bc70a74f8220429ba1d96ef2be1af1cae22bf6736fa9650de69e7da1d37f92c4a92fbc93cc28fdbdb84")
+	copy(signature[:], sig)
 
-func decodePublicKey(pk string, t *testing.T) (pubKey [32]byte) {
-	publicKey, err := hex.DecodeString(pk)
-	if err != nil && t != nil {
-		t.Fatalf("Unexpected error from hex.DecodeString(%s): %v", pk, err)
+	if result, err := schnorr.Verify(publicKey, message, signature); err != nil {
+		fmt.Printf("The signature verification failed: %v\n", err)
+	} else if result {
+		fmt.Println("The signature is valid.")
 	}
-	copy(pubKey[:], publicKey)
-	return
-}
 
-func decodePrivateKey(d string, t *testing.T) *big.Int {
-	privKey, ok := new(big.Int).SetString(d, 16)
-	if !ok && t != nil {
-		t.Fatalf("Unexpected error from new(big.Int).SetString(%s, 16)", d)
-	}
-	return privKey
+	// Output:
+	// The signature is valid.
 }
