@@ -8,14 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-
-	"github.com/btcsuite/btcd/btcec"
 )
 
 var (
-	// Curve is a KoblitzCurve which implements secp256k1.
-	Curve = btcec.S256()
-
 	// Zero holds a big integer of 0
 	Zero = new(big.Int)
 	// One holds a big integer of 1
