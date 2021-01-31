@@ -92,7 +92,7 @@ func Sign(privateKey *big.Int, message [32]byte, aux []byte) ([64]byte, error) {
 // Returns an error if verification fails.
 // https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki#verification
 func Verify(publicKey [32]byte, message [32]byte, signature [64]byte) (bool, error) {
-	Px, Py := Unmarshal(Curve, publicKey[:])
+	Px, Py := unmarshal(Curve, publicKey[:])
 
 	if Px == nil || Py == nil || !Curve.IsOnCurve(Px, Py) {
 		return false, errors.New("signature verification failed")
@@ -162,14 +162,9 @@ func intToByte(i *big.Int) []byte {
 	return b1[:]
 }
 
-// Marshal just encodes x as bytes. Unnecessary.
-func Marshal(curve elliptic.Curve, x, y *big.Int) []byte {
-	return x.Bytes()
-}
-
-// Unmarshal converts a point, serialised by Marshal, into an x, y pair. On
+// unmarshal converts a point (which is just the x coords), into an x, y pair. On
 // error, x = nil.
-func Unmarshal(curve elliptic.Curve, data []byte) (x, y *big.Int) {
+func unmarshal(curve elliptic.Curve, data []byte) (x, y *big.Int) {
 	byteLen := (curve.Params().BitSize + 7) >> 3
 	if len(data) != byteLen {
 		return
