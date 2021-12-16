@@ -46,6 +46,9 @@ func TestSign(t *testing.T) {
 
 		m := decodeMessage(message, t)
 
+		// check public key
+		pk := decodePublicKey(publicKey, t)
+
 		if privateKey != "" {
 			// use private key and aux to sign
 			d := decodePrivateKey(privateKey, t)
@@ -65,10 +68,14 @@ func TestSign(t *testing.T) {
 				t.Fatalf("[%s]: Sign(%s, %s, %s) = %s, want %s",
 					index, privateKey, message, aux, observed, expected)
 			}
-		}
 
-		// check public key
-		pk := decodePublicKey(publicKey, t)
+			// check if pubkey derivation is ok
+			if GetPublicKey(d) != pk {
+				t.Fatalf(
+					"[%s]: Derived public key is different from key on file: %x != %x",
+					index, pk, d)
+			}
+		}
 
 		// test if signature verification works
 		signature32 := decodeSignature(sig, t)
@@ -103,18 +110,17 @@ func decodeMessage(m string, t *testing.T) (msg [32]byte) {
 }
 
 func decodePublicKey(pk string, t *testing.T) (pubKey [32]byte) {
-	publicKey, err := hex.DecodeString(pk)
+	pubKey, err := ParsePublicKey(pk)
 	if err != nil && t != nil {
-		t.Fatalf("Unexpected error from hex.DecodeString(%s): %v", pk, err)
+		t.Fatalf("Unexpected error from ParsePublicKey(%s): %v", pk, err)
 	}
-	copy(pubKey[:], publicKey)
 	return
 }
 
 func decodePrivateKey(d string, t *testing.T) *big.Int {
-	privKey, ok := new(big.Int).SetString(d, 16)
-	if !ok && t != nil {
-		t.Fatalf("Unexpected error from new(big.Int).SetString(%s, 16)", d)
+	privKey, err := ParsePrivateKey(d)
+	if err != nil && t != nil {
+		t.Fatalf("Unexpected error from ParsePrivateKey(%s): %v", d, err)
 	}
 	return privKey
 }
